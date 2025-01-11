@@ -22,6 +22,9 @@ export interface TmuxWindow {
   name: string;
   active: boolean;
   panes: TmuxPane[];
+  index?: number;
+  layout?: string;
+  flags?: string[];
 }
 
 /**

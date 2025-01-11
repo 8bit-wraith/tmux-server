@@ -210,4 +210,83 @@ export class TmuxManager {
     const { success } = await this.executeCommand('start-server');
     return success;
   }
+
+  /**
+   * Switch to a specific window
+   */
+  public async switchWindow(sessionName: string, windowId: string): Promise<TmuxCommandResponse> {
+    return this.executeCommand(`select-window -t "${sessionName}:${windowId}"`);
+  }
+
+  /**
+   * Get the active window in a session
+   */
+  public async getActiveWindow(sessionName: string): Promise<TmuxWindow | null> {
+    const { success, output, error } = await this.executeCommand(
+      `list-windows -t "${sessionName}" -F "#{window_id}|#{window_name}|#{window_active}|#{window_index}"`
+    );
+
+    if (!success || error) {
+      return null;
+    }
+
+    const activeWindow = output
+      .split('\n')
+      .filter(Boolean)
+      .find(line => {
+        const [, , active] = line.split('|');
+        return active === '1';
+      });
+
+    if (!activeWindow) {
+      return null;
+    }
+
+    const [id, name, active, index] = activeWindow.split('|');
+    return {
+      id,
+      name,
+      active: active === '1',
+      index: parseInt(index),
+      panes: [], // Panes will be populated on demand
+    };
+  }
+
+  /**
+   * Switch to the next window
+   */
+  public async nextWindow(sessionName: string): Promise<TmuxCommandResponse> {
+    return this.executeCommand(`next-window -t "${sessionName}"`);
+  }
+
+  /**
+   * Switch to the previous window
+   */
+  public async previousWindow(sessionName: string): Promise<TmuxCommandResponse> {
+    return this.executeCommand(`previous-window -t "${sessionName}"`);
+  }
+
+  /**
+   * Get detailed window information
+   */
+  public async getWindowInfo(sessionName: string, windowId: string): Promise<TmuxWindow | null> {
+    const { success, output, error } = await this.executeCommand(
+      `list-windows -t "${sessionName}:${windowId}" -F "#{window_id}|#{window_name}|#{window_active}|#{window_layout}|#{window_index}|#{window_flags}"`
+    );
+
+    if (!success || error || !output) {
+      return null;
+    }
+
+    const [id, name, active, layout, index, flags] = output.split('|');
+    return {
+      id,
+      name,
+      active: active === '1',
+      index: parseInt(index),
+      layout,
+      flags: flags.split(''),
+      panes: await this.getPanes(sessionName, id),
+    };
+  }
 } 

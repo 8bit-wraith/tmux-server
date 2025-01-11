@@ -220,4 +220,150 @@ describe('TmuxManager', () => {
       expect(running).toBe(false);
     });
   });
+
+  describe('window management', () => {
+    describe('getActiveWindow', () => {
+      it('should return the active window', async () => {
+        const mockOutput = '1|first|0|0\n2|second|1|1\n3|third|0|2';
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, mockOutput, '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const activeWindow = await manager.getActiveWindow('test-session');
+        expect(activeWindow).toEqual({
+          id: '2',
+          name: 'second',
+          active: true,
+          index: 1,
+          panes: [],
+        });
+      });
+
+      it('should return null when no active window found', async () => {
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, '', '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const activeWindow = await manager.getActiveWindow('test-session');
+        expect(activeWindow).toBeNull();
+      });
+    });
+
+    describe('switchWindow', () => {
+      it('should switch to the specified window', async () => {
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, 'switched', '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const result = await manager.switchWindow('test-session', '2');
+        expect(result.success).toBe(true);
+        expect(mockExec).toHaveBeenCalledWith(
+          expect.stringContaining('select-window -t "test-session:2"'),
+          expect.any(Function)
+        );
+      });
+    });
+
+    describe('nextWindow/previousWindow', () => {
+      it('should switch to next window', async () => {
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, 'switched', '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const result = await manager.nextWindow('test-session');
+        expect(result.success).toBe(true);
+        expect(mockExec).toHaveBeenCalledWith(
+          expect.stringContaining('next-window -t "test-session"'),
+          expect.any(Function)
+        );
+      });
+
+      it('should switch to previous window', async () => {
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, 'switched', '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const result = await manager.previousWindow('test-session');
+        expect(result.success).toBe(true);
+        expect(mockExec).toHaveBeenCalledWith(
+          expect.stringContaining('previous-window -t "test-session"'),
+          expect.any(Function)
+        );
+      });
+    });
+
+    describe('getWindowInfo', () => {
+      it('should return detailed window information', async () => {
+        const mockOutput = '1|main|1|main-vertical|0|*Z';
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(null, mockOutput, '');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        // Mock getPanes since it's called by getWindowInfo
+        jest.spyOn(manager, 'getPanes').mockResolvedValue([{
+          id: '1',
+          active: true,
+          width: 80,
+          height: 24,
+          command: 'bash',
+          pid: 123,
+        }]);
+
+        const windowInfo = await manager.getWindowInfo('test-session', '1');
+        expect(windowInfo).toEqual({
+          id: '1',
+          name: 'main',
+          active: true,
+          index: 0,
+          layout: 'main-vertical',
+          flags: ['*', 'Z'],
+          panes: [{
+            id: '1',
+            active: true,
+            width: 80,
+            height: 24,
+            command: 'bash',
+            pid: 123,
+          }],
+        });
+      });
+
+      it('should return null on error', async () => {
+        mockExec.mockImplementation((command, options, callback) => {
+          if (typeof options === 'function') {
+            callback = options;
+          }
+          callback?.(new Error('window not found') as ExecException, '', 'error');
+          return { pid: 123 } as ChildProcess;
+        });
+
+        const windowInfo = await manager.getWindowInfo('test-session', '999');
+        expect(windowInfo).toBeNull();
+      });
+    });
+  });
 }); 
