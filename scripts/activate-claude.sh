@@ -8,6 +8,9 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
+# Project root directory
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # ASCII art for MCP activation
 show_header() {
   echo -e "${BLUE}"
@@ -32,13 +35,28 @@ random_quote() {
   echo "${ACTIVATION_QUOTES[$idx]}"
 }
 
-# Check if tmux is installed
+# Check if dependencies are installed
 check_dependencies() {
   if ! command -v tmux &> /dev/null; then
     echo -e "${RED}Error: tmux is not installed!${NC}"
     echo -e "${YELLOW}Please install tmux first:${NC}"
     echo "brew install tmux  # for macOS"
     echo "apt install tmux   # for Ubuntu/Debian"
+    exit 1
+  fi
+
+  if ! command -v node &> /dev/null; then
+    echo -e "${RED}Error: Node.js is not installed!${NC}"
+    echo -e "${YELLOW}Please install Node.js first:${NC}"
+    echo "brew install node  # for macOS"
+    echo "apt install nodejs # for Ubuntu/Debian"
+    exit 1
+  fi
+
+  if ! command -v pnpm &> /dev/null; then
+    echo -e "${RED}Error: pnpm is not installed!${NC}"
+    echo -e "${YELLOW}Please install pnpm first:${NC}"
+    echo "npm install -g pnpm"
     exit 1
   fi
 }
@@ -73,6 +91,48 @@ ensure_server() {
   echo -e "${GREEN}✓ Tmux server running${NC}"
 }
 
+# Create MCP configuration
+create_mcp_config() {
+  local config_dir="$HOME/.config/claude-mcp"
+  local config_file="$config_dir/config.json"
+  
+  # Create config directory if it doesn't exist
+  mkdir -p "$config_dir"
+  
+  # Create MCP configuration
+  cat > "$config_file" << EOF
+{
+  "mcpServers": {
+    "tmux-server": {
+      "command": "node",
+      "args": [
+        "$ROOT_DIR/dist/index.js"
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "MCP_SESSION": "claude"
+      }
+    }
+  }
+}
+EOF
+  
+  echo -e "${GREEN}✓ MCP configuration created at $config_file${NC}"
+}
+
+# Build the MCP server
+build_mcp_server() {
+  echo -e "${YELLOW}Building MCP server...${NC}"
+  cd "$ROOT_DIR"
+  
+  if ! pnpm build; then
+    echo -e "${RED}Failed to build MCP server!${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}✓ MCP server built${NC}"
+}
+
 # Create a new session for Claude
 create_claude_session() {
   local session_name="claude"
@@ -84,8 +144,8 @@ create_claude_session() {
     sleep 1
   fi
   
-  # Create new session with a default command
-  if ! tmux new-session -d -s "$session_name" "echo 'MCP Ready'; bash"; then
+  # Create new session with MCP server
+  if ! tmux new-session -d -s "$session_name" -c "$ROOT_DIR" "node dist/index.js"; then
     echo -e "${RED}Failed to create session!${NC}"
     exit 1
   fi
@@ -94,6 +154,13 @@ create_claude_session() {
   tmux set-option -t "$session_name" status-bg blue
   tmux set-option -t "$session_name" status-fg white
   tmux set-option -t "$session_name" status-right "#[fg=white]MCP Active"
+  
+  # Create a new window for the shell
+  tmux new-window -t "$session_name" -n "shell"
+  
+  # Select the first window (MCP server)
+  tmux select-window -t "$session_name:0"
+  tmux rename-window -t "$session_name:0" "mcp-server"
   
   # Verify session exists
   if ! tmux has-session -t "$session_name" 2>/dev/null; then
@@ -114,6 +181,10 @@ main() {
   check_dependencies
   
   ensure_server
+  
+  echo -e "${YELLOW}Setting up MCP...${NC}"
+  create_mcp_config
+  build_mcp_server
   
   echo -e "${YELLOW}Creating Claude session...${NC}"
   create_claude_session
