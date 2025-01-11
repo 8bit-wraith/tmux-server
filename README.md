@@ -1,10 +1,10 @@
-# 🎮 MCP Tmux Server
+# 🎮 @mcp/tmux-interface
 
 > "Where AI meets tmux, and magic happens!" - Trisha from Accounting
 
 ## 🌟 Overview
 
-Welcome to the MCP (Master Control Program) Tmux Server! This project bridges the gap between Claude.app and tmux sessions, allowing seamless interaction between AI and terminal environments. Think of it as a digital playground where AI and humans can collaborate in real-time terminal sessions!
+Welcome to the MCP Tmux Interface! This project bridges the gap between Claude.app and tmux sessions, allowing seamless interaction between AI and terminal environments. Think of it as a digital playground where AI and humans can collaborate in real-time terminal sessions!
 
 ## ✨ Features
 
@@ -24,13 +24,25 @@ Welcome to the MCP (Master Control Program) Tmux Server! This project bridges th
 
 ## 🚀 Quick Start
 
+### Installation via MCPM (Recommended)
+
+```bash
+# Install mcpm if you haven't already
+npm install -g @mcpm/cli
+
+# Install the tmux interface
+mcpm install @mcp/tmux-interface
+```
+
+### Manual Installation
+
 ```bash
 # Install pnpm if you haven't already
 npm install -g pnpm
 
 # Clone the repository
-git clone https://github.com/yourusername/mcp-tmux-server.git
-cd mcp-tmux-server
+git clone https://github.com/yourusername/mcp-tmux-interface.git
+cd mcp-tmux-interface
 
 # Install dependencies
 pnpm install

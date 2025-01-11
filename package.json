@@ -1,5 +1,5 @@
 {
-  "name": "mcp-tmux-server",
+  "name": "@mcp/tmux-interface",
   "version": "0.1.0",
   "description": "MCP server for Claude.app tmux integration",
   "type": "module",
@@ -21,7 +21,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.1.0",
     "node-pty": "^1.0.0",
-    "tmux-interface": "^1.0.0",
     "ws": "^8.16.0"
   },
   "devDependencies": {
@@ -40,5 +39,20 @@
   },
   "author": "Hue and Aye <hue@8b.is, aye@8b.is>",
   "license": "MIT",
-  "packageManager": "pnpm@8.15.1"
+  "packageManager": "pnpm@8.15.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/mcp-tmux-interface.git"
+  },
+  "keywords": [
+    "mcp",
+    "tmux",
+    "claude",
+    "ai",
+    "terminal",
+    "interface"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

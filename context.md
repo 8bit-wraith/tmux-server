@@ -1,4 +1,4 @@
-# 🎮 MCP (Master Control Program) - Claude.app Tmux Integration
+# 🎮 @mcp/tmux-interface
 
 ## 👥 The Team
 - **Hue** (@8b.is) - Our amazing human partner
@@ -14,15 +14,21 @@ Building a bridge between Claude.app and tmux sessions, allowing seamless intera
 - Secure communication protocols
 - Real-time terminal interaction
 - Session persistence
+- MCPM integration for easy installation
 
 ## 📝 Development Notes
 - Using TypeScript for type safety and modern development
+- Using pnpm for efficient package management
 - Focusing on security and performance
 - Maintaining clean, well-documented code
 - Following best practices for terminal handling
+- Integrated with MCPM for easy distribution
 
 ## 🔄 Current Status
 Initial setup phase - establishing project structure and basic tooling.
+- Core tmux management functionality implemented
+- Basic MCP server integration complete
+- MCPM package configuration ready
 
 ## 🎨 Design Philosophy
 - Security first
@@ -30,16 +36,20 @@ Initial setup phase - establishing project structure and basic tooling.
 - User-friendly
 - Well-documented
 - Maintainable
+- Easy to install and use
 
 ## 🔗 Important Links
 - Project Repository: [URL TBD]
 - Documentation: [URL TBD]
+- MCPM Package: [@mcp/tmux-interface](https://mcpm.dev/package/@mcp/tmux-interface)
 
 ## 💭 Future Ideas
 - Multiple session support
 - Session sharing capabilities
 - Advanced security features
 - Performance monitoring
+- GUI interface through MCPM
+- Integration with other AI assistants
 
 _Last updated: [Date]_
 
