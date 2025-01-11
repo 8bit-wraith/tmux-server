@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * MCP server implementation for tmux integration
+ * MCP server implementation for tmux integration using control mode
  * Allows Claude.app to interact with tmux sessions through:
  * - Listing active sessions as resources
  * - Reading session content
@@ -22,6 +22,24 @@ import { TmuxManager } from "./tmux-manager.js";
 // Get singleton instance of TmuxManager
 const tmux = TmuxManager.getInstance();
 
+// Connect to tmux in control mode
+await tmux.connect();
+
+// Handle cleanup on exit
+process.on('exit', () => {
+  tmux.disconnect();
+});
+
+process.on('SIGINT', () => {
+  tmux.disconnect();
+  process.exit();
+});
+
+process.on('SIGTERM', () => {
+  tmux.disconnect();
+  process.exit();
+});
+
 /**
  * Create MCP server with capabilities for resources and tools
  */
@@ -34,6 +52,7 @@ const server = new Server(
     capabilities: {
       resources: {},
       tools: {},
+      hooks: {}, // Enable hooks for real-time updates
     },
   }
 );
@@ -218,17 +237,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  * Start the server using stdio transport
  */
 async function main() {
-  // Ensure tmux server is running
-  if (!await tmux.ensureServerRunning()) {
-    console.error("Failed to start tmux server");
-    process.exit(1);
-  }
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
 main().catch((error) => {
   console.error("Server error:", error);
+  tmux.disconnect();
   process.exit(1);
 });

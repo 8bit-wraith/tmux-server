@@ -1,10 +1,33 @@
 #!/bin/bash
-echo "=== MCP Session History ==="
-echo "Server Log: /Users/wraith/Documents/Cline/MCP/tmux-server/logs/mcp-server_2025-01-11_02-31-35.log"
-echo "Command Log: /Users/wraith/Documents/Cline/MCP/tmux-server/logs/commands_2025-01-11_02-31-35.log"
+
+# Colors for pretty output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Get the log directory
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOG_DIR="$ROOT_DIR/logs"
+
+echo -e "${BLUE}╔════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║      Command History Viewer        ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════╝${NC}"
 echo
-echo "=== Last Server Output ==="
-tail -n 20 "/Users/wraith/Documents/Cline/MCP/tmux-server/logs/mcp-server_2025-01-11_02-31-35.log"
-echo
-echo "=== Recent Commands ==="
-tail -n 20 "/Users/wraith/Documents/Cline/MCP/tmux-server/logs/commands_2025-01-11_02-31-35.log"
+
+if [ -d "$LOG_DIR" ]; then
+    echo -e "${GREEN}📜 Recent commands:${NC}\n"
+    for log in "$LOG_DIR"/commands_*.log; do
+        if [ -f "$log" ]; then
+            echo -e "${YELLOW}From session $(basename "$log"):${NC}"
+            cat "$log" | grep -v "^#" | tail -n 20
+            echo
+        fi
+    done
+else
+    echo -e "${YELLOW}No command history found yet!${NC}"
+    echo "History will be available after running some commands."
+fi
+
+echo -e "${BLUE}Press any key to continue...${NC}"
+read -n 1

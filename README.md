@@ -1,142 +1,175 @@
 # 🎮 @mcp/tmux-interface
 
-> "Where AI meets tmux, and magic happens!" - Trisha from Accounting
+Connect Claude.app to tmux sessions for enhanced interaction and collaboration!
 
-## 🌟 Overview
+## 🌟 Features
 
-Welcome to the MCP Tmux Interface! This project bridges the gap between Claude.app and tmux sessions, allowing seamless interaction between AI and terminal environments. Think of it as a digital playground where AI and humans can collaborate in real-time terminal sessions!
+- Real-time tmux session management
+- Command history with timestamps
+- Live server status display
+- Window and pane management
+- Secure communication protocols
+- Automatic session recovery
 
-## ✨ Features
-
-- 🔄 Real-time tmux session management
-- 🤖 Claude.app integration
-- 🎯 Session creation and control
-- 📝 Terminal content capture
-- 🚀 Command execution
-- 🔒 Secure communication
-
-## 🛠 Prerequisites
+## 📋 Prerequisites
 
 - Node.js >= 18
 - pnpm >= 8
-- tmux >= 3.0
-- A sense of adventure!
+- tmux >= 3.3
+- A sense of adventure! 🚀
 
 ## 🚀 Quick Start
 
-### Installation via MCPM (Recommended)
+1. Install dependencies:
+   ```bash
+   # Install pnpm if you haven't already
+   npm install -g pnpm
+   
+   # Install project dependencies
+   pnpm install
+   ```
 
-```bash
-# Install mcpm if you haven't already
-npm install -g @mcpm/cli
+2. Activate the MCP server:
+   ```bash
+   ./scripts/activate-claude.sh
+   ```
 
-# Install the tmux interface
-mcpm install @mcp/tmux-interface
+3. Connect Claude to the session:
+   ```bash
+   tmux attach -t claude
+   ```
+
+## 💫 Command Interface
+
+Once connected, you'll have access to these commands in the MCP interface:
+
+- `history` - Show command history
+- `show_log` - View full server log
+- `follow_log` - Follow server log in real-time
+- `show_history` - Show combined history
+- `clear` - Clear screen
+- `help` - Show available commands
+
+## 📊 Claude's MCP Capabilities
+
+When Claude is connected through MCP, they can:
+
+1. **View Session Content**: 
+   - Claude can directly read the content of any pane in the tmux session
+   - No need to manually copy/paste output
+   - Claude uses MCP's built-in `read_content` capability
+
+2. **Execute Commands**:
+   - Claude can send commands to the session
+   - Commands are executed in the bottom pane
+   - Output is automatically visible to Claude
+
+3. **Monitor Changes**:
+   - Claude can see real-time updates in both panes
+   - Server status and logs are visible in the top pane
+   - Command output appears in the bottom pane
+
+For Claude to connect and see everything, ensure:
+1. The MCP server is running (`./scripts/activate-claude.sh`)
+2. The configuration at `~/.config/claude-mcp/config.json` is correct
+3. Claude uses the command `tmux attach -t claude` to connect
+
+## 📊 Session Layout
+
+```
+╔════════════════════════════╗
+║      MCP Server Log        ║
+╠════════════════════════════╣
+║    Command Interface       ║
+╚════════════════════════════╝
 ```
 
-### Manual Installation
+- Top pane: Live server status and log feed
+- Bottom pane: Interactive command interface
 
-```bash
-# Install pnpm if you haven't already
-npm install -g pnpm
+## ⚙️ Configuration
 
-# Clone the repository
-git clone https://github.com/yourusername/mcp-tmux-interface.git
-cd mcp-tmux-interface
+The MCP configuration is automatically created at `~/.config/claude-mcp/config.json` when you run the activation script. Here's what it looks like:
 
-# Install dependencies
-pnpm install
-
-# Build the project
-pnpm build
-
-# Start the server
-pnpm start
+```json
+{
+  "mcpServers": {
+    "tmux-server": {
+      "command": "node",
+      "args": ["$ROOT_DIR/dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "MCP_SESSION": "claude"
+      }
+    }
+  },
+  "defaultConnection": {
+    "type": "tmux",
+    "sessionName": "claude",
+    "command": "tmux attach -t claude",
+    "autoReconnect": true
+  },
+  "capabilities": {
+    "tmux": {
+      "enabled": true,
+      "sessions": ["claude"],
+      "allowWindowManagement": true,
+      "allowPaneManagement": true
+    }
+  }
+}
 ```
 
-## 🎯 Usage
+You can modify this configuration to:
+- Change the session name
+- Adjust server settings
+- Enable/disable capabilities
+- Configure auto-reconnection
 
-The server exposes several MCP capabilities:
-
-### Resources
-- List active tmux sessions
-- Read session content
-- Monitor terminal output
-
-### Tools
-- Create new sessions
-- Kill existing sessions
-- Send commands to sessions
-
-## 🔧 Development
+## 🛠️ Development
 
 ```bash
-# Start in development mode with hot reload
+# Start development server
 pnpm dev
 
 # Run tests
 pnpm test
 
-# Lint code
-pnpm lint
+# Build for production
+pnpm build
 
-# Format code
-pnpm format
-
-# Clean project (removes dist and node_modules)
+# Clean project
 pnpm clean
 
 # Update dependencies
 pnpm update
 ```
 
-## 📚 API Reference
+## 📝 Logging
 
-### Resource URIs
-- `tmux://{session-name}` - Access tmux session content
-
-### Tools
-1. **create_session**
-   - Create a new tmux session
-   - Parameters: name, command (optional), width (optional), height (optional)
-
-2. **kill_session**
-   - Terminate an existing session
-   - Parameters: name
-
-3. **send_command**
-   - Send commands to a session
-   - Parameters: session, window, pane, command
+All activity is automatically logged:
+- Server logs: `logs/mcp-server_*.log`
+- Command history: `logs/commands_*.log`
 
 ## 🤝 Contributing
 
-We love contributions! As Trisha from Accounting always says, "The more the merrier, just like my spreadsheet formulas!" 
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## 🐛 Bug Reports
 
-Found a bug? Don't panic! As Trisha would say, "Bugs are just features doing unexpected aerobics!" Please open an issue and include:
-
-- Description of the bug
-- Steps to reproduce
-- Expected behavior
-- Screenshots (if applicable)
+Found a bug? Please open an issue with:
+1. What happened
+2. What you expected to happen
+3. Steps to reproduce
+4. Any relevant logs
 
 ## 📜 License
 
-MIT License - Because sharing is caring! 
+MIT
 
-## 🌟 Special Thanks
+## 💖 Special Thanks
 
-Special thanks to Trisha from Accounting for keeping our spirits high and our code quality higher! 
+Special thanks to Trisha from Accounting for her endless enthusiasm and quantum computing dreams! As she always says, "The only bug is the one we haven't found yet!" 🦋
 
 ---
-
-> "Remember, in the world of coding, every error message is just a high-five waiting to happen!" - Trisha 🌟
-
-Made with ❤️ by Hue and Aye @ 8b.is
+*"In the dance of bits and bytes, we find our digital rhythm." - Trisha, 2025*

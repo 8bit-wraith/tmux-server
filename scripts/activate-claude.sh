@@ -154,15 +154,11 @@ create_claude_session() {
   local command_log="$log_dir/commands_${timestamp}.log"
   local history_file="$log_dir/session_history.txt"
   
-  # Check if session already exists
+  # Kill any existing sessions more gracefully
   if tmux has-session -t "$session_name" 2>/dev/null; then
-    echo -e "${YELLOW}Existing Claude session found. Recreating...${NC}"
-    # Save existing history before killing session
-    if [ -f "$history_file" ]; then
-      mv "$history_file" "${history_file}.backup"
-    fi
+    echo -e "${YELLOW}Existing Claude session found. Cleaning up...${NC}"
     tmux kill-session -t "$session_name"
-    sleep 1
+    sleep 2
   fi
   
   echo -e "${YELLOW}Creating new session...${NC}"
@@ -170,62 +166,46 @@ create_claude_session() {
   # Create logs directory if it doesn't exist
   mkdir -p "$log_dir"
   
-  # Create new session with MCP server and logging enabled
-  if ! TMUX="" tmux new-session -d -s "$session_name" -c "$ROOT_DIR"; then
-    echo -e "${RED}Failed to create session!${NC}"
-    exit 1
-  fi
+  # Start tmux server explicitly if not running
+  tmux start-server
   
-  # Configure the session for better visibility
+  # Create new session with set-remain-on-exit
+  TMUX="" tmux new-session -d -s "$session_name" -c "$ROOT_DIR"
+  tmux set-option -t "$session_name" remain-on-exit on
+  tmux set-option -t "$session_name" destroy-unattached off
+  
+  # Configure the session
   tmux set-option -t "$session_name" status-bg blue
   tmux set-option -t "$session_name" status-fg white
   tmux set-option -t "$session_name" status-right "#[fg=white]MCP Active | %H:%M:%S"
-  
-  # Configure history and scrollback
   tmux set-option -t "$session_name" history-limit 50000
   tmux set-option -g -t "$session_name" set-clipboard on
-  
-  # Enable mouse mode for easier navigation
   tmux set-option -g -t "$session_name" mouse on
   
   # Window 0: MCP Server and Command Interface
   tmux rename-window -t "${session_name}:0" "mcp"
-  
-  # Split the window vertically for server and command pane
   tmux split-window -t "${session_name}:0" -v -p 30
   
   # Configure the server pane (top)
   tmux select-pane -t "${session_name}:0.0"
-  # Add timestamp and session info to log header
-  cat > "$session_log" << EOF
-==============================================
-MCP Server Session Log
-Started: $(date)
-Session: $session_name
-==============================================
-
-EOF
-  tmux send-keys -t "${session_name}:0.0" "echo 'Starting MCP Server...' && node dist/index.js 2>&1 | tee -a $session_log" C-m
-  tmux pipe-pane -t "${session_name}:0.0" "cat >> $session_log"
   
-  # Configure the command pane (bottom)
-  tmux select-pane -t "${session_name}:0.1"
-  
-  # Create a clean bash environment for the command pane
+  # Create initialization script for command pane
   cat > "$ROOT_DIR/scripts/init_command_pane.sh" << EOF
 #!/bin/bash
+
 # Set up history
 export HISTFILE="$command_log"
 export HISTSIZE=50000
 export HISTFILESIZE=50000
-
-# Disable command echoing in history
 export HISTCONTROL=ignorespace
 
-# Custom prompt to show we're in MCP
+# Add scripts to PATH
+export PATH="$ROOT_DIR/scripts:\$PATH"
+
+# Custom prompt
 export PS1="🤖 MCP> "
 
-# Function to save history with timestamp
+# Save history with timestamp
 save_history() {
   local cmd=\$(history 1 | cut -c 8-)
   echo "[\$(date '+%Y-%m-%d %H:%M:%S')] \$cmd" >> "\$HISTFILE"
@@ -245,24 +225,32 @@ Commands:
   help                - Show this message
 ----------------------------------------
 WELCOME
+
+# Define help function
+help() {
+  cat << 'HELP'
+🤖 Claude Command Interface Ready
+----------------------------------------
+Commands:
+  history              - Show command history
+  show_log            - View full server log
+  follow_log          - Follow server log
+  show_history        - Show combined history
+  clear               - Clear screen
+  help                - Show this message
+----------------------------------------
+HELP
+}
 EOF
   chmod +x "$ROOT_DIR/scripts/init_command_pane.sh"
-
-  # Start command pane with clean environment
+  
+  # Start the server in background and show status
+  tmux send-keys -t "${session_name}:0.0" "node dist/index.js 2>&1 | tee -a $session_log &" C-m
+  tmux send-keys -t "${session_name}:0.0" "./scripts/show_status.sh $session_log" C-m
+  
+  # Configure the command pane (bottom)
+  tmux select-pane -t "${session_name}:0.1"
   tmux send-keys -t "${session_name}:0.1" "cd $ROOT_DIR && exec bash --init-file scripts/init_command_pane.sh" C-m
-  
-  # Create helper scripts for Claude
-  cat > "$ROOT_DIR/scripts/show_log" << EOF
-#!/bin/bash
-cat "$session_log" | less
-EOF
-  chmod +x "$ROOT_DIR/scripts/show_log"
-  
-  cat > "$ROOT_DIR/scripts/follow_log" << EOF
-#!/bin/bash
-tail -f "$session_log"
-EOF
-  chmod +x "$ROOT_DIR/scripts/follow_log"
   
   echo -e "${GREEN}✓ Claude session created${NC}"
   echo -e "${BLUE}Session layout:${NC}"
@@ -271,10 +259,6 @@ EOF
   echo -e "╠════════════════════════════╣"
   echo -e "║    Command Interface       ║"
   echo -e "╚════════════════════════════╝"
-  echo -e "${BLUE}Log files:${NC}"
-  echo -e "- Server log: ${YELLOW}$session_log${NC}"
-  echo -e "- Command log: ${YELLOW}$command_log${NC}"
-  echo -e "- View history: ${YELLOW}./scripts/show_history.sh${NC}"
 }
 
 # Main activation sequence

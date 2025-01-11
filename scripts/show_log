@@ -1,2 +1,11 @@
 #!/bin/bash
-cat "/Users/wraith/Documents/Cline/MCP/tmux-server/logs/mcp-server_2025-01-11_02-32-48.log" | less
+
+# Get the latest log file
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LATEST_LOG=$(ls -t "$ROOT_DIR/logs"/mcp-server_*.log | head -n1)
+
+if [ -f "$LATEST_LOG" ]; then
+    cat "$LATEST_LOG"
+else
+    echo "No log file found!"
+fi
