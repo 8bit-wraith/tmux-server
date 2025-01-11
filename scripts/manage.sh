@@ -44,6 +44,10 @@ show_menu() {
     echo -e "${CYAN}3)${NC} Restart MCP Server"
     echo -e "${CYAN}4)${NC} Run Tests"
     echo -e "${CYAN}5)${NC} Check Status"
+    echo -e "${CYAN}6)${NC} Start Dev Server"
+    echo -e "${CYAN}7)${NC} Clean Project"
+    echo -e "${CYAN}8)${NC} Install Dependencies"
+    echo -e "${CYAN}9)${NC} Update Dependencies"
     echo -e "${CYAN}q)${NC} Quit"
 }
 
@@ -73,6 +77,22 @@ main() {
             check_status
             return
             ;;
+        "dev")
+            dev_server
+            return
+            ;;
+        "clean")
+            clean_project
+            return
+            ;;
+        "install")
+            install_deps
+            return
+            ;;
+        "update")
+            update_deps
+            return
+            ;;
     esac
 
     # Interactive menu if no direct command
@@ -85,6 +105,10 @@ main() {
             3) restart_server ;;
             4) run_tests ;;
             5) check_status ;;
+            6) dev_server ;;
+            7) clean_project ;;
+            8) install_deps ;;
+            9) update_deps ;;
             q) 
                 announce "See you later, alligator! 🐊"
                 exit 0
@@ -99,13 +123,11 @@ main() {
 # 🚀 Server Management Functions
 start_server() {
     announce "Starting up the MCP server! Let's show Claude what we've got! 🚀"
-    # Add actual start command here
-    run_command "npm start"
+    run_command "pnpm start"
 }
 
 stop_server() {
     announce "Shutting down MCP... Don't worry, it'll be back! 🛑"
-    # Add actual stop command here
     run_command "pkill -f 'node.*mcp-server'"
 }
 
@@ -118,14 +140,33 @@ restart_server() {
 
 run_tests() {
     announce "Running tests! Fingers crossed! 🤞"
-    # Add actual test command here
-    run_command "npm test"
+    run_command "pnpm test"
 }
 
 check_status() {
     announce "Let's see what's cooking! 🔍"
-    # Add actual status check command here
     run_command "ps aux | grep '[n]ode.*mcp-server'"
+}
+
+# Add development commands
+dev_server() {
+    announce "Starting development server with hot reload! 🔥"
+    run_command "pnpm dev"
+}
+
+clean_project() {
+    announce "Time for some spring cleaning! 🧹"
+    run_command "pnpm clean"
+}
+
+install_deps() {
+    announce "Installing dependencies with pnpm! 📦"
+    run_command "pnpm install"
+}
+
+update_deps() {
+    announce "Updating dependencies to their latest versions! 🚀"
+    run_command "pnpm update"
 }
 
 # Make it happen!

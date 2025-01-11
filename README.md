@@ -18,24 +18,28 @@ Welcome to the MCP (Master Control Program) Tmux Server! This project bridges th
 ## 🛠 Prerequisites
 
 - Node.js >= 18
+- pnpm >= 8
 - tmux >= 3.0
 - A sense of adventure!
 
 ## 🚀 Quick Start
 
 ```bash
+# Install pnpm if you haven't already
+npm install -g pnpm
+
 # Clone the repository
 git clone https://github.com/yourusername/mcp-tmux-server.git
 cd mcp-tmux-server
 
 # Install dependencies
-npm install
+pnpm install
 
 # Build the project
-npm run build
+pnpm build
 
 # Start the server
-npm start
+pnpm start
 ```
 
 ## 🎯 Usage
@@ -55,17 +59,23 @@ The server exposes several MCP capabilities:
 ## 🔧 Development
 
 ```bash
-# Start in development mode
-npm run dev
+# Start in development mode with hot reload
+pnpm dev
 
 # Run tests
-npm test
+pnpm test
 
 # Lint code
-npm run lint
+pnpm lint
 
 # Format code
-npm run format
+pnpm format
+
+# Clean project (removes dist and node_modules)
+pnpm clean
+
+# Update dependencies
+pnpm update
 ```
 
 ## 📚 API Reference
