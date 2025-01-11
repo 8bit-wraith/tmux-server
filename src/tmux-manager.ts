@@ -39,30 +39,42 @@ export class TmuxManager {
       return;
     }
 
-    try {
-      // Start tmux in control mode
-      this.tmuxProcess = spawn('tmux', ['-C', 'new-session', '-D', '-s', 'mcp']);
+    return new Promise<void>((resolve, reject) => {
+      try {
+        // Start tmux in control mode
+        this.tmuxProcess = spawn('tmux', ['-C', 'new-session', '-D', '-s', 'mcp']);
 
-      // Handle stdout data
-      this.tmuxProcess.stdout?.on('data', (data: Buffer) => {
-        this.handleTmuxOutput(data.toString());
-      });
+        // Handle stdout data
+        this.tmuxProcess.stdout?.on('data', (data: Buffer) => {
+          this.handleTmuxOutput(data.toString());
+        });
 
-      // Handle stderr data
-      this.tmuxProcess.stderr?.on('data', (data: Buffer) => {
-        console.error('Tmux error:', data.toString());
-      });
+        // Handle stderr data
+        this.tmuxProcess.stderr?.on('data', (data: Buffer) => {
+          console.error('Tmux error:', data.toString());
+        });
 
-      // Handle process exit
-      this.tmuxProcess.on('exit', (code: number) => {
-        console.log('Tmux process exited with code:', code);
-        this.connected = false;
-      });
+        // Handle process exit
+        this.tmuxProcess.on('exit', (code: number) => {
+          console.log('Tmux process exited with code:', code);
+          this.connected = false;
+        });
 
-      this.connected = true;
-    } catch (error) {
-      throw new Error(`Failed to connect to tmux: ${error}`);
-    }
+        // Handle process error
+        this.tmuxProcess.on('error', (error: Error) => {
+          this.connected = false;
+          reject(new Error(`Failed to connect to tmux: ${error}`));
+        });
+
+        // Handle successful spawn
+        this.tmuxProcess.on('spawn', () => {
+          this.connected = true;
+          resolve();
+        });
+      } catch (error) {
+        reject(new Error(`Failed to connect to tmux: ${error}`));
+      }
+    });
   }
 
   /**

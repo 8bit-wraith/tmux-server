@@ -188,7 +188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case "create_session": {
       const { name, command, width, height } = request.params.arguments as any;
-      const result = await tmux.createSession({ name, command, width, height });
+      const result = await tmux.executeCommand(`new-session -d -s "${name}" ${command ? `-n "${command}"` : ''} ${width ? `-x ${width}` : ''} ${height ? `-y ${height}` : ''}`);
       
       return {
         content: [{
@@ -202,7 +202,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "kill_session": {
       const { name } = request.params.arguments as any;
-      const result = await tmux.killSession(name);
+      const result = await tmux.executeCommand(`kill-session -t "${name}"`);
       
       return {
         content: [{

@@ -9,6 +9,10 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
 # 🎭 Fun ASCII Art because why not?
 show_header() {
     echo -e "${CYAN}"
@@ -48,6 +52,9 @@ show_menu() {
     echo -e "${CYAN}7)${NC} Clean Project"
     echo -e "${CYAN}8)${NC} Install Dependencies"
     echo -e "${CYAN}9)${NC} Update Dependencies"
+    echo -e "${CYAN}10)${NC} Activate Claude Session"
+    echo -e "${CYAN}11)${NC} List Tmux Sessions"
+    echo -e "${CYAN}12)${NC} Kill All Sessions"
     echo -e "${CYAN}q)${NC} Quit"
 }
 
@@ -93,6 +100,18 @@ main() {
             update_deps
             return
             ;;
+        "activate")
+            activate_claude
+            return
+            ;;
+        "sessions")
+            list_sessions
+            return
+            ;;
+        "killall")
+            kill_all_sessions
+            return
+            ;;
     esac
 
     # Interactive menu if no direct command
@@ -109,6 +128,9 @@ main() {
             7) clean_project ;;
             8) install_deps ;;
             9) update_deps ;;
+            10) activate_claude ;;
+            11) list_sessions ;;
+            12) kill_all_sessions ;;
             q) 
                 announce "See you later, alligator! 🐊"
                 exit 0
@@ -122,13 +144,71 @@ main() {
 
 # 🚀 Server Management Functions
 start_server() {
-    announce "Starting up the MCP server! Let's show Claude what we've got! 🚀"
-    run_command "pnpm start"
+    announce "Starting up the MCP server in control mode! Let's show Claude what we've got! 🚀"
+    
+    # Create logs directory if it doesn't exist
+    mkdir -p "$ROOT_DIR/logs"
+    
+    # Generate timestamped log files
+    TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+    LOG_FILE="$ROOT_DIR/logs/mcp-server_$TIMESTAMP.log"
+    ERROR_LOG="$ROOT_DIR/logs/mcp-server_$TIMESTAMP.error.log"
+    
+    # Create symlinks to latest logs
+    ln -sf "$LOG_FILE" "$ROOT_DIR/logs/mcp-server.log"
+    ln -sf "$ERROR_LOG" "$ROOT_DIR/logs/mcp-server.error.log"
+    
+    # Build the project first
+    announce "Building the project..."
+    run_command "pnpm build"
+    
+    # Start the server as a daemon
+    announce "Starting MCP server daemon..."
+    cd "$ROOT_DIR"
+    NODE_ENV=production nohup pnpm start > "$LOG_FILE" 2> "$ERROR_LOG" & echo $! > "$ROOT_DIR/logs/mcp-server.pid"
+    
+    # Give it a moment to start
+    sleep 2
+    
+    # Check if server started successfully
+    if [ -f "$ROOT_DIR/logs/mcp-server.pid" ] && ps -p $(cat "$ROOT_DIR/logs/mcp-server.pid") > /dev/null; then
+        # Check logs for any startup errors
+        if grep -i "error" "$ERROR_LOG" > /dev/null; then
+            echo -e "${RED}Server started but encountered errors:${NC}"
+            cat "$ERROR_LOG"
+            stop_server
+            exit 1
+        fi
+        
+        announce "MCP server is running in the background! Check logs for details 📝"
+        echo -e "${YELLOW}Logs available at:${NC}"
+        echo -e "  ${CYAN}Output:${NC} $LOG_FILE"
+        echo -e "  ${CYAN}Errors:${NC} $ERROR_LOG"
+        echo -e "  ${CYAN}Latest logs linked at:${NC} logs/mcp-server.log"
+        
+        # Show initial server output
+        echo -e "\n${CYAN}Initial server output:${NC}"
+        tail -n 5 "$LOG_FILE"
+    else
+        echo -e "${RED}Failed to start MCP server! Check error log for details:${NC}"
+        cat "$ERROR_LOG"
+        exit 1
+    fi
 }
 
 stop_server() {
-    announce "Shutting down MCP... Don't worry, it'll be back! 🛑"
-    run_command "pkill -f 'node.*mcp-server'"
+    announce "Shutting down MCP and cleaning up tmux sessions... Don't worry, it'll be back! 🛑"
+    
+    # Kill the server using PID file if it exists
+    if [ -f "$ROOT_DIR/logs/mcp-server.pid" ]; then
+        run_command "kill $(cat \"$ROOT_DIR/logs/mcp-server.pid\") 2>/dev/null || true"
+        rm -f "$ROOT_DIR/logs/mcp-server.pid"
+    else
+        run_command "pkill -f 'node.*mcp-server' 2>/dev/null || true"
+    fi
+    
+    # Clean up tmux sessions
+    run_command "tmux kill-session -t mcp 2>/dev/null || true"
 }
 
 restart_server() {
@@ -139,18 +219,36 @@ restart_server() {
 }
 
 run_tests() {
-    announce "Running tests! Fingers crossed! 🤞"
+    announce "Running tests! Fingers crossed for those control mode tests! 🤞"
     run_command "pnpm test"
 }
 
 check_status() {
-    announce "Let's see what's cooking! 🔍"
-    run_command "ps aux | grep '[n]ode.*mcp-server'"
+    announce "Let's see what's cooking in our tmux sessions! 🔍"
+    
+    # Check MCP server status using PID file
+    echo -e "${YELLOW}MCP Server Status:${NC}"
+    if [ -f "$ROOT_DIR/logs/mcp-server.pid" ] && ps -p $(cat "$ROOT_DIR/logs/mcp-server.pid") > /dev/null; then
+        echo -e "${GREEN}MCP server is running (PID: $(cat "$ROOT_DIR/logs/mcp-server.pid"))${NC}"
+        echo -e "${CYAN}Last 5 log entries:${NC}"
+        tail -n 5 "$ROOT_DIR/logs/mcp-server.log" 2>/dev/null || echo "No log entries yet"
+        
+        if [ -f "$ROOT_DIR/logs/mcp-server.error.log" ]; then
+            echo -e "\n${YELLOW}Recent errors (if any):${NC}"
+            tail -n 5 "$ROOT_DIR/logs/mcp-server.error.log" 2>/dev/null
+        fi
+    else
+        echo -e "${RED}MCP server is not running${NC}"
+    fi
+    
+    # Check tmux sessions
+    echo -e "\n${YELLOW}Tmux Sessions:${NC}"
+    run_command "tmux list-sessions 2>/dev/null || echo 'No active tmux sessions'"
 }
 
-# Add development commands
+# Development commands
 dev_server() {
-    announce "Starting development server with hot reload! 🔥"
+    announce "Starting development server with hot reload! Watch that control mode magic! 🔥"
     run_command "pnpm dev"
 }
 
@@ -167,6 +265,22 @@ install_deps() {
 update_deps() {
     announce "Updating dependencies to their latest versions! 🚀"
     run_command "pnpm update"
+}
+
+# Tmux Session Management
+activate_claude() {
+    announce "Activating Claude's tmux session! Time for some AI magic! ✨"
+    run_command "$SCRIPT_DIR/activate-claude.sh"
+}
+
+list_sessions() {
+    announce "Here are all our active tmux sessions! 📋"
+    run_command "tmux list-sessions 2>/dev/null || echo 'No active tmux sessions'"
+}
+
+kill_all_sessions() {
+    announce "Cleaning up all tmux sessions! Fresh start incoming! 🧹"
+    run_command "tmux kill-server 2>/dev/null || echo 'No tmux server running'"
 }
 
 # Make it happen!

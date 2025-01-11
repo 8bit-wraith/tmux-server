@@ -1,107 +1,115 @@
-import { TmuxManager } from './tmux-manager';
 import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import { TmuxManager } from './tmux-manager';
 
-// Mock child_process.spawn
-jest.mock('node:child_process', () => ({
-  spawn: jest.fn(),
-}));
+jest.mock('node:child_process');
 
 describe('TmuxManager', () => {
   let manager: TmuxManager;
-  let mockSpawn: jest.MockedFunction<typeof spawn>;
+  let mockProcess: any;
   let mockStdin: any;
   let mockStdout: any;
   let mockStderr: any;
-  let mockProcess: any;
 
   beforeEach(() => {
-    // Reset mocks
-    jest.clearAllMocks();
+    mockStdin = new EventEmitter();
+    mockStdin.write = jest.fn();
+    mockStdin.end = jest.fn();
 
-    // Create mock process with stdin/stdout/stderr
-    mockStdin = {
-      write: jest.fn(),
-      end: jest.fn(),
-    };
-    mockStdout = {
-      on: jest.fn(),
-    };
-    mockStderr = {
-      on: jest.fn(),
-    };
-    mockProcess = {
-      stdin: mockStdin,
-      stdout: mockStdout,
-      stderr: mockStderr,
-      on: jest.fn(),
-      kill: jest.fn(),
-    };
+    mockStdout = new EventEmitter();
+    mockStderr = new EventEmitter();
+    
+    mockProcess = new EventEmitter();
+    mockProcess.stdin = mockStdin;
+    mockProcess.stdout = mockStdout;
+    mockProcess.stderr = mockStderr;
+    mockProcess.kill = jest.fn();
 
-    // Setup spawn mock
-    mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    mockSpawn.mockReturnValue(mockProcess);
-
-    // Get singleton instance
+    (spawn as jest.Mock).mockReturnValue(mockProcess);
+    
     manager = TmuxManager.getInstance();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    manager.disconnect();
   });
 
   describe('connect', () => {
     it('should connect to tmux in control mode', async () => {
-      await manager.connect();
-
-      expect(mockSpawn).toHaveBeenCalledWith('tmux', ['-C', 'new-session', '-D', '-s', 'mcp']);
-      expect(mockStdout.on).toHaveBeenCalledWith('data', expect.any(Function));
-      expect(mockStderr.on).toHaveBeenCalledWith('data', expect.any(Function));
-      expect(mockProcess.on).toHaveBeenCalledWith('exit', expect.any(Function));
+      const connectPromise = manager.connect();
+      
+      // Verify spawn args before emitting success
+      expect(spawn).toHaveBeenCalledWith('tmux', ['-C', 'new-session', '-D', '-s', 'mcp']);
+      
+      // Emit spawn event to indicate success
+      mockProcess.emit('spawn');
+      await connectPromise;
+      
+      expect(manager['connected']).toBe(true);
     });
 
     it('should handle connection errors', async () => {
-      mockSpawn.mockImplementation(() => {
-        throw new Error('Failed to spawn tmux');
-      });
-
-      await expect(manager.connect()).rejects.toThrow('Failed to spawn tmux');
+      const error = new Error('Failed to spawn tmux');
+      const connectPromise = manager.connect();
+      
+      // Verify spawn was called
+      expect(spawn).toHaveBeenCalled();
+      
+      // Emit error event and wait for rejection
+      setImmediate(() => mockProcess.emit('error', error));
+      
+      // Verify promise rejects
+      await expect(connectPromise).rejects.toThrow('Failed to connect to tmux: Error: Failed to spawn tmux');
+      expect(manager['connected']).toBe(false);
     });
   });
 
   describe('executeCommand', () => {
+    beforeEach(async () => {
+      const connectPromise = manager.connect();
+      mockProcess.emit('spawn');
+      await connectPromise;
+    });
+
     it('should send command through control mode', async () => {
-      await manager.connect();
-
-      const promise = manager.executeCommand('list-sessions');
+      const commandPromise = manager.executeCommand('list-sessions');
       
-      // Simulate tmux output
-      const dataHandler = mockStdout.on.mock.calls[0][1];
-      dataHandler('%begin 1234\r\n0: mcp: 1 windows\r\n%end 1234\r\n');
-
-      const result = await promise;
-      expect(result.success).toBe(true);
-      expect(result.output).toBe('0: mcp: 1 windows');
       expect(mockStdin.write).toHaveBeenCalledWith('list-sessions\n');
+      
+      mockStdout.emit('data', Buffer.from('%begin 1\ntest: 1 windows\n%end 1\n'));
+      
+      const result = await commandPromise;
+      expect(result.success).toBe(true);
+      expect(result.output).toBe('test: 1 windows');
     });
 
     it('should handle command errors', async () => {
-      await manager.connect();
-
-      const promise = manager.executeCommand('invalid-command');
+      const commandPromise = manager.executeCommand('invalid-command');
       
-      // Simulate error output
-      const dataHandler = mockStdout.on.mock.calls[0][1];
-      dataHandler('%begin 1234\r\n%error invalid command\r\n%end 1234\r\n');
-
-      const result = await promise;
+      expect(mockStdin.write).toHaveBeenCalledWith('invalid-command\n');
+      
+      mockStdout.emit('data', Buffer.from('%begin 1\n%error invalid command\n%end 1\n'));
+      
+      const result = await commandPromise;
       expect(result.success).toBe(false);
       expect(result.error).toBe('invalid command');
     });
   });
 
   describe('disconnect', () => {
-    it('should disconnect cleanly', async () => {
-      await manager.connect();
-      manager.disconnect();
+    beforeEach(async () => {
+      const connectPromise = manager.connect();
+      mockProcess.emit('spawn');
+      await connectPromise;
+    });
 
+    it('should disconnect cleanly', () => {
+      manager.disconnect();
+      
       expect(mockStdin.end).toHaveBeenCalled();
       expect(mockProcess.kill).toHaveBeenCalled();
+      expect(manager['connected']).toBe(false);
     });
   });
 }); 
