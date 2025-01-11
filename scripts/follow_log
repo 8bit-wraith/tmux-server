@@ -1,0 +1,2 @@
+#!/bin/bash
+tail -f "/Users/wraith/Documents/Cline/MCP/tmux-server/logs/mcp-server_2025-01-11_02-32-48.log"

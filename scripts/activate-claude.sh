@@ -210,45 +210,59 @@ EOF
   
   # Configure the command pane (bottom)
   tmux select-pane -t "${session_name}:0.1"
-  # Create command history script
-  cat > "$ROOT_DIR/scripts/save_history.sh" << 'EOF'
+  
+  # Create a clean bash environment for the command pane
+  cat > "$ROOT_DIR/scripts/init_command_pane.sh" << EOF
 #!/bin/bash
-while IFS= read -r line; do
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $line" >> "$HISTFILE"
-done
+# Set up history
+export HISTFILE="$command_log"
+export HISTSIZE=50000
+export HISTFILESIZE=50000
+
+# Disable command echoing in history
+export HISTCONTROL=ignorespace
+
+# Custom prompt to show we're in MCP
+export PS1="🤖 MCP> "
+
+# Function to save history with timestamp
+save_history() {
+  local cmd=\$(history 1 | cut -c 8-)
+  echo "[\$(date '+%Y-%m-%d %H:%M:%S')] \$cmd" >> "\$HISTFILE"
+}
+export PROMPT_COMMAND="save_history"
+
+# Show welcome message
+cat << 'WELCOME'
+🤖 Claude Command Interface Ready
+----------------------------------------
+Commands:
+  history              - Show command history
+  show_log            - View full server log
+  follow_log          - Follow server log
+  show_history        - Show combined history
+  clear               - Clear screen
+  help                - Show this message
+----------------------------------------
+WELCOME
 EOF
-  chmod +x "$ROOT_DIR/scripts/save_history.sh"
+  chmod +x "$ROOT_DIR/scripts/init_command_pane.sh"
+
+  # Start command pane with clean environment
+  tmux send-keys -t "${session_name}:0.1" "cd $ROOT_DIR && exec bash --init-file scripts/init_command_pane.sh" C-m
   
-  # Set up command logging
-  tmux send-keys -t "${session_name}:0.1" "cd $ROOT_DIR" C-m
-  tmux send-keys -t "${session_name}:0.1" "export HISTFILE=$command_log" C-m
-  tmux send-keys -t "${session_name}:0.1" "export PROMPT_COMMAND='history 1 | cut -c 8- | $ROOT_DIR/scripts/save_history.sh'" C-m
-  tmux send-keys -t "${session_name}:0.1" "HISTSIZE=50000 HISTFILESIZE=50000" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '🤖 Claude Command Interface Ready'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Use this pane to issue commands'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Server output will appear in the top pane'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Use Ctrl-b o to switch between panes'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Type \"history\" to see command history'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Use \"cat $session_log\" to view full server log'" C-m
-  tmux send-keys -t "${session_name}:0.1" "echo '- Use \"tail -f $session_log\" to follow server log'" C-m
-  
-  # Create a function to show session history
-  cat > "$ROOT_DIR/scripts/show_history.sh" << EOF
+  # Create helper scripts for Claude
+  cat > "$ROOT_DIR/scripts/show_log" << EOF
 #!/bin/bash
-echo "=== MCP Session History ==="
-echo "Server Log: $session_log"
-echo "Command Log: $command_log"
-echo
-echo "=== Last Server Output ==="
-tail -n 20 "$session_log"
-echo
-echo "=== Recent Commands ==="
-tail -n 20 "$command_log"
+cat "$session_log" | less
 EOF
-  chmod +x "$ROOT_DIR/scripts/show_history.sh"
+  chmod +x "$ROOT_DIR/scripts/show_log"
   
-  # Set the command pane as active
-  tmux select-pane -t "${session_name}:0.1"
+  cat > "$ROOT_DIR/scripts/follow_log" << EOF
+#!/bin/bash
+tail -f "$session_log"
+EOF
+  chmod +x "$ROOT_DIR/scripts/follow_log"
   
   echo -e "${GREEN}✓ Claude session created${NC}"
   echo -e "${BLUE}Session layout:${NC}"
