@@ -158,23 +158,38 @@ create_claude_session() {
   
   echo -e "${YELLOW}Creating new session...${NC}"
   
-  # Create new session with MCP server
-  if ! TMUX="" tmux new-session -d -s "$session_name" -c "$ROOT_DIR" "node dist/index.js"; then
+  # Create new session with MCP server and logging enabled
+  if ! TMUX="" tmux new-session -d -s "$session_name" -c "$ROOT_DIR"; then
     echo -e "${RED}Failed to create session!${NC}"
     exit 1
   fi
   
-  # Configure the session
+  # Configure the session for better visibility
   tmux set-option -t "$session_name" status-bg blue
   tmux set-option -t "$session_name" status-fg white
   tmux set-option -t "$session_name" status-right "#[fg=white]MCP Active"
   
-  # Create a new window for the shell
+  # Enable command and output logging
+  tmux pipe-pane -t "${session_name}:0" "cat >> $ROOT_DIR/logs/mcp-server.log"
+  
+  # Configure history and scrollback
+  tmux set-option -t "$session_name" history-limit 50000
+  tmux set-option -g -t "$session_name" set-clipboard on
+  
+  # Enable mouse mode for easier navigation
+  tmux set-option -g -t "$session_name" mouse on
+  
+  # Create a new window for the MCP server with logging
+  tmux new-window -t "$session_name" -n "mcp-server"
+  tmux send-keys -t "${session_name}:0" "node dist/index.js | tee -a $ROOT_DIR/logs/mcp-server.log" C-m
+  
+  # Create a new window for the shell with history
   tmux new-window -t "$session_name" -n "shell"
+  tmux send-keys -t "${session_name}:1" "HISTSIZE=50000 HISTFILESIZE=50000" C-m
+  tmux send-keys -t "${session_name}:1" "echo 'MCP Shell Ready - History and logging enabled'" C-m
   
   # Select the first window (MCP server)
   tmux select-window -t "$session_name:0"
-  tmux rename-window -t "$session_name:0" "mcp-server"
   
   # Verify session exists
   if ! tmux has-session -t "$session_name" 2>/dev/null; then
@@ -182,7 +197,11 @@ create_claude_session() {
     exit 1
   fi
   
+  # Create logs directory if it doesn't exist
+  mkdir -p "$ROOT_DIR/logs"
+  
   echo -e "${GREEN}✓ Claude session created${NC}"
+  echo -e "${BLUE}Logs will be available at: ${YELLOW}$ROOT_DIR/logs/mcp-server.log${NC}"
 }
 
 # Main activation sequence
