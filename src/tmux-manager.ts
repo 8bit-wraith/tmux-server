@@ -35,7 +35,16 @@ export class TmuxManager {
    */
   private async executeCommand(command: string): Promise<TmuxCommandResponse> {
     try {
-      const { stdout, stderr } = await exec(`tmux ${command}`);
+      const { stdout = '', stderr = '' } = await new Promise<{ stdout: string, stderr: string }>((resolve, reject) => {
+        execCallback(`tmux ${command}`, (error, stdout, stderr) => {
+          if (error && !stderr) {
+            reject(error);
+          } else {
+            resolve({ stdout, stderr });
+          }
+        });
+      });
+
       return {
         success: !stderr,
         output: stdout.trim(),
