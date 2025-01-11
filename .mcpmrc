@@ -1,0 +1,54 @@
+{
+  "name": "@mcp/tmux-interface",
+  "version": "0.1.0",
+  "description": "Tmux integration for Claude.app - Where AI meets tmux!",
+  "author": "Hue and Aye <hue@8b.is, aye@8b.is>",
+  "license": "MIT",
+  "homepage": "https://mcpm.dev/package/@mcp/tmux-interface",
+  "repository": "https://github.com/yourusername/mcp-tmux-interface",
+  
+  "commands": {
+    "start": "pnpm start",
+    "install": "pnpm install",
+    "build": "pnpm build",
+    "update": "pnpm update",
+    "dev": "pnpm dev"
+  },
+
+  "capabilities": [
+    "tmux",
+    "terminal",
+    "session-management",
+    "real-time-interaction"
+  ],
+
+  "requirements": {
+    "node": ">=18",
+    "pnpm": ">=8",
+    "tmux": ">=3.0"
+  },
+
+  "tags": [
+    "tmux",
+    "claude",
+    "ai",
+    "terminal",
+    "mcp",
+    "interface"
+  ],
+
+  "mcpm": {
+    "category": "terminal-integration",
+    "priority": "recommended",
+    "autostart": true,
+    "configTemplate": {
+      "defaultSession": "claude-tmux",
+      "maxSessions": 10,
+      "securityLevel": "high",
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      }
+    }
+  }
+} 
