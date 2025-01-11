@@ -1,0 +1,36 @@
+{
+  "name": "mcp-tmux-server",
+  "version": "0.1.0",
+  "description": "MCP server for Claude.app tmux integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.1.0",
+    "node-pty": "^1.0.0",
+    "tmux-interface": "^1.0.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.11.5",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.4",
+    "ts-jest": "^29.1.1",
+    "tsc-watch": "^6.0.4",
+    "typescript": "^5.3.3"
+  },
+  "author": "Hue and Aye <hue@8b.is, aye@8b.is>",
+  "license": "MIT"
+}
