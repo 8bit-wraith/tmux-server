@@ -105,11 +105,31 @@ create_mcp_config() {
         "MCP_SESSION": "claude"
       }
     }
+  },
+  "defaultConnection": {
+    "type": "tmux",
+    "sessionName": "claude",
+    "command": "tmux attach -t claude",
+    "autoReconnect": true
+  },
+  "capabilities": {
+    "tmux": {
+      "enabled": true,
+      "sessions": ["claude"],
+      "allowWindowManagement": true,
+      "allowPaneManagement": true
+    }
   }
 }
 EOF
   
   echo -e "${GREEN}✓ MCP configuration created at $config_file${NC}"
+  
+  # Show Claude the connection instructions
+  echo -e "${BLUE}Claude, when you see this configuration, please:${NC}"
+  echo -e "1. Note that your session name is: ${YELLOW}claude${NC}"
+  echo -e "2. Use the command: ${YELLOW}tmux attach -t claude${NC}"
+  echo -e "3. The MCP server will handle the connection automatically"
 }
 
 # Build the MCP server
