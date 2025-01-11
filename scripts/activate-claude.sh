@@ -63,32 +63,24 @@ check_dependencies() {
 
 # Ensure tmux server is running
 ensure_server() {
-  echo -e "${YELLOW}Starting tmux server...${NC}"
-  tmux start-server
-  sleep 1  # Give the server a moment to initialize
+  echo -e "${YELLOW}Preparing tmux environment...${NC}"
   
-  # Verify server is running
-  if ! tmux list-sessions &>/dev/null; then
-    echo -e "${RED}Failed to start tmux server!${NC}"
-    echo -e "${YELLOW}Trying to fix common issues...${NC}"
-    
-    # Clean up potential stale socket
-    rm -f /tmp/tmux-$UID/default 2>/dev/null
-    
-    # Try starting server again
-    tmux start-server
-    sleep 1
-    
-    if ! tmux list-sessions &>/dev/null; then
-      echo -e "${RED}Could not start tmux server. Please try:${NC}"
-      echo "1. Kill any existing tmux processes: pkill tmux"
-      echo "2. Remove tmux socket: rm -f /tmp/tmux-$UID/default"
-      echo "3. Run this script again"
-      exit 1
-    fi
+  # Clean up any existing tmux processes
+  if pgrep tmux >/dev/null; then
+    echo -e "${YELLOW}Found existing tmux processes. Cleaning up...${NC}"
+    pkill tmux
+    sleep 2
   fi
   
-  echo -e "${GREEN}✓ Tmux server running${NC}"
+  # Clean up socket directory
+  local socket_dir="/tmp/tmux-$(id -u)"
+  if [ -d "$socket_dir" ]; then
+    echo -e "${YELLOW}Cleaning up tmux socket directory...${NC}"
+    rm -rf "$socket_dir"
+    sleep 1
+  fi
+  
+  echo -e "${GREEN}✓ Tmux environment ready${NC}"
 }
 
 # Create MCP configuration
@@ -144,8 +136,10 @@ create_claude_session() {
     sleep 1
   fi
   
+  echo -e "${YELLOW}Creating new session...${NC}"
+  
   # Create new session with MCP server
-  if ! tmux new-session -d -s "$session_name" -c "$ROOT_DIR" "node dist/index.js"; then
+  if ! TMUX="" tmux new-session -d -s "$session_name" -c "$ROOT_DIR" "node dist/index.js"; then
     echo -e "${RED}Failed to create session!${NC}"
     exit 1
   fi
