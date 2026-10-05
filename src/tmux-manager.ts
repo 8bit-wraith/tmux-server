@@ -21,6 +21,7 @@ export class TmuxManager {
   private commandCounter = 0;
   private buffer = '';
   private connected = false;
+  private responseBlock: { guard: string; commandId?: number; output: string[] } | null = null;
 
   private constructor() {}
 
@@ -56,13 +57,15 @@ export class TmuxManager {
 
         // Handle process exit
         this.tmuxProcess.on('exit', (code: number) => {
-          console.log('Tmux process exited with code:', code);
+          console.error('Tmux process exited with code:', code);
           this.connected = false;
+          this.rejectPending(new Error('Tmux process exited'));
         });
 
         // Handle process error
         this.tmuxProcess.on('error', (error: Error) => {
           this.connected = false;
+          this.rejectPending(error);
           reject(new Error(`Failed to connect to tmux: ${error}`));
         });
 
@@ -83,42 +86,36 @@ export class TmuxManager {
   private handleTmuxOutput(data: string) {
     this.buffer += data;
 
-    // Process complete messages
+    // A block can span any number of stdout chunks. Command numbers are
+    // server-assigned; map client-command blocks to our pending FIFO queue.
     while (this.buffer.includes('\n')) {
       const newlineIndex = this.buffer.indexOf('\n');
       const line = this.buffer.slice(0, newlineIndex);
       this.buffer = this.buffer.slice(newlineIndex + 1);
-
-      // Parse control mode output
-      if (line.startsWith('%begin')) {
-        const id = parseInt(line.split(' ')[1]);
-        let output = '';
-        let error = '';
-
-        // Collect output until %end
-        while (this.buffer.includes('\n')) {
-          const nextNewline = this.buffer.indexOf('\n');
-          const nextLine = this.buffer.slice(0, nextNewline);
-          this.buffer = this.buffer.slice(nextNewline + 1);
-
-          if (nextLine.startsWith('%end')) {
-            // Resolve the command
-            const handler = this.commandQueue.get(id);
-            if (handler) {
-              handler.resolve({
-                success: !error,
-                output: output.trim(),
-                error: error || undefined
-              });
-              this.commandQueue.delete(id);
-            }
-            break;
-          } else if (nextLine.startsWith('%error')) {
-            error = nextLine.slice(7);
-          } else {
-            output += nextLine + '\n';
-          }
+      const begin = /^%begin (\d+) (\d+) (\d+)$/.exec(line);
+      if (!this.responseBlock && begin) {
+        this.responseBlock = {
+          guard: `${begin[1]} ${begin[2]} ${begin[3]}`,
+          commandId: (Number(begin[3]) & 1) !== 0
+            ? this.commandQueue.keys().next().value : undefined,
+          output: []
+        };
+        continue;
+      }
+      const block = this.responseBlock;
+      if (!block) continue; // Asynchronous notifications are not command output.
+      const success = line === `%end ${block.guard}`;
+      const failure = line === `%error ${block.guard}`;
+      if (success || failure) {
+        const output = block.output.join('\n').trim();
+        if (block.commandId !== undefined) {
+          const handler = this.commandQueue.get(block.commandId);
+          this.commandQueue.delete(block.commandId);
+          handler?.resolve({ success, output, error: failure ? output : undefined });
         }
+        this.responseBlock = null;
+      } else {
+        block.output.push(line);
       }
     }
   }
@@ -136,6 +133,7 @@ export class TmuxManager {
       this.commandQueue.set(id, { resolve, reject });
       const stdin = this.tmuxProcess?.stdin;
       if (!stdin) {
+        this.commandQueue.delete(id);
         reject(new Error('Tmux stdin not available'));
         return;
       }
@@ -291,15 +289,21 @@ export class TmuxManager {
   /**
    * Disconnect from tmux
    */
+  private rejectPending(error: Error): void {
+    for (const handler of this.commandQueue.values()) handler.reject(error);
+    this.commandQueue.clear();
+    this.responseBlock = null;
+    this.buffer = '';
+  }
+
   public disconnect(): void {
+    this.rejectPending(new Error('Disconnected from tmux'));
     if (this.tmuxProcess) {
       this.tmuxProcess.stdin?.end();
       this.tmuxProcess.kill();
       this.tmuxProcess = null;
-      this.connected = false;
-      this.commandQueue.clear();
-      this.buffer = '';
-      this.commandCounter = 0;
     }
+    this.connected = false;
+    this.commandCounter = 0;
   }
-} 
+}

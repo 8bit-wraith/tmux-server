@@ -77,11 +77,34 @@ describe('TmuxManager', () => {
       
       expect(mockStdin.write).toHaveBeenCalledWith('list-sessions\n');
       
-      mockStdout.emit('data', Buffer.from('%begin 1\ntest: 1 windows\n%end 1\n'));
+      mockStdout.emit('data', Buffer.from('%begin 1700000000 258 1\ntest: 1 windows\n%end 1700000000 258 1\n'));
       
       const result = await commandPromise;
       expect(result.success).toBe(true);
       expect(result.output).toBe('test: 1 windows');
+    });
+
+    it('preserves response state across stdout chunks', async () => {
+      const response = manager.executeCommand('display-message synthetic');
+      mockStdout.emit('data', Buffer.from('%begin 1700000000 300 1\nhel'));
+      mockStdout.emit('data', Buffer.from('lo\n%end 1700000000 '));
+      mockStdout.emit('data', Buffer.from('300 1\n'));
+      await expect(response).resolves.toEqual({
+        success: true, output: 'hello', error: undefined
+      });
+    });
+
+    it('rejects an in-flight command when the process exits', async () => {
+      const response = manager.executeCommand('display-message synthetic');
+      const rejection = expect(response).rejects.toThrow('Tmux process exited');
+      const diagnostic = jest.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        mockProcess.emit('exit', 1);
+        await rejection;
+        expect(manager['commandQueue'].size).toBe(0);
+      } finally {
+        diagnostic.mockRestore();
+      }
     });
 
     it('should handle command errors', async () => {
@@ -89,7 +112,7 @@ describe('TmuxManager', () => {
       
       expect(mockStdin.write).toHaveBeenCalledWith('invalid-command\n');
       
-      mockStdout.emit('data', Buffer.from('%begin 1\n%error invalid command\n%end 1\n'));
+      mockStdout.emit('data', Buffer.from('%begin 1700000000 259 1\ninvalid command\n%error 1700000000 259 1\n'));
       
       const result = await commandPromise;
       expect(result.success).toBe(false);
